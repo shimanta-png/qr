@@ -1,116 +1,90 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Contact to QR Code</title>
 </head>
-
 <body>
 
 <?php
-require_once('vendor/autoload.php');
+require_once("vendor/autoload.php");
 
-use chillerlan\QRCode\QRCode;
-use chillerlan\QRCode\QROptions;
-use chillerlan\QRCode\Data\QRMatrix;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Logo\Logo;
 
 $qrImage = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['first_name']) && !empty($_POST['phone'])) {
 
-    $firstName = trim($_POST['first_name'] ?? '');
+    // Sanitize Inputs
+    $firstName = trim($_POST['first_name']);
     $lastName  = trim($_POST['last_name'] ?? '');
-    $phone     = trim($_POST['phone'] ?? '');
+    $phone     = trim($_POST['phone']);
     $email     = trim($_POST['email'] ?? '');
     $address   = trim($_POST['address'] ?? '');
     $state     = trim($_POST['state'] ?? '');
     $postcode  = trim($_POST['postcode'] ?? '');
     $country   = trim($_POST['country'] ?? '');
-    $logo      = $_POST['logo'] ?? '';
-    $color     = $_POST['color'] ?? 'black';
 
-    if (empty($firstName) || empty($phone)) {
-        die("First Name and Phone are required!");
+    // Build vCard
+    $vCard = "BEGIN:VCARD\n";
+    $vCard .= "VERSION:3.0\n";
+    $vCard .= "N:$lastName;$firstName\n";
+    $vCard .= "FN:$firstName $lastName\n";
+    $vCard .= "TEL;TYPE=CELL:$phone\n";
+
+    if (!empty($email)) {
+        $vCard .= "EMAIL:$email\n";
     }
 
-    // ---------- CREATE VCARD ----------
-    $vcard  = "BEGIN:VCARD\n";
-    $vcard .= "VERSION:3.0\n";
-    $vcard .= "N:$lastName;$firstName\n";
-    $vcard .= "FN:$firstName $lastName\n";
-    $vcard .= "TEL;TYPE=CELL:$phone\n";
-    $vcard .= "EMAIL:$email\n";
-    $vcard .= "ADR;TYPE=HOME:;;$address;$state;;$postcode;$country\n";
-    $vcard .= "END:VCARD";
+    if (!empty($address)) {
+        $vCard .= "ADR;TYPE=HOME:;;$address;$state;;$postcode;$country\n";
+    }
 
-    // ---------- COLOR SWITCH ----------
+    $vCard .= "END:VCARD";
+
+    // Color Selection
+    $color = $_POST['color'] ?? 'black';
+
     switch ($color) {
-        case 'red':    $rgb = [255, 0, 0]; break;
-        case 'blue':   $rgb = [0, 191, 255]; break;
-        case 'yellow': $rgb = [255, 204, 0]; break;
-        case 'violet': $rgb = [128, 0, 255]; break;
-        default:       $rgb = [0, 0, 0];
+        case 'red':    $rgb = [255,0,0]; break;
+        case 'blue':   $rgb = [0,191,255]; break;
+        case 'yellow': $rgb = [255,204,0]; break;
+        case 'violet': $rgb = [128,0,255]; break;
+        default:       $rgb = [0,0,0];
     }
 
-    // ---------- QR OPTIONS ----------
-    $options = new QROptions([
-        'version' => null,
-        'outputType' => QRCode::OUTPUT_IMAGE_PNG,
-        // 'eccLevel' => QRCode::ECC_H,
-        'eccLevel' => QRCode::ECC_Q,
-        'scale' => 6,
-        'addLogoSpace' => !empty($logo),
-        'logoSpaceWidth' => 13,
-        'logoSpaceHeight' => 13,
+    $writer = new PngWriter();
 
-        'moduleValues' => [
-            QRMatrix::M_DATA_DARK       => $rgb,
-            QRMatrix::M_FINDER_DARK     => $rgb,
-            QRMatrix::M_ALIGNMENT_DARK  => $rgb,
-            QRMatrix::M_TIMING_DARK     => $rgb,
-            QRMatrix::M_FORMAT_DARK     => $rgb,
-            QRMatrix::M_VERSION_DARK    => $rgb,
-        ],
-    ]);
+    $qrCode = new QrCode(
+        data: $vCard,
+        errorCorrectionLevel: ErrorCorrectionLevel::High,
+        size: 300,
+        margin: 10,
+        foregroundColor: new Color($rgb[0], $rgb[1], $rgb[2]),
+        backgroundColor: new Color(255,255,255)
+    );
 
-    $qr = new QRCode($options);
-    $qrImage = $qr->render($vcard);
+    // Logo handling
+    $logo = $_POST['logo'] ?? '';
+    $logoObj = null;
 
-    // ---------- ADD LOGO ----------
     if (!empty($logo) && file_exists(__DIR__ . '/logos/' . $logo . '.png')) {
-
-        $qrImg = imagecreatefromstring(file_get_contents($qrImage));
-        $logoImg = imagecreatefrompng(__DIR__ . '/logos/' . $logo . '.png');
-
-        $qrWidth = imagesx($qrImg);
-        $qrHeight = imagesy($qrImg);
-
-        $logoWidth = imagesx($logoImg);
-        $logoHeight = imagesy($logoImg);
-
-        $logoSize = $qrWidth / 4;
-
-        imagecopyresampled(
-            $qrImg,
-            $logoImg,
-            ($qrWidth - $logoSize) / 2,
-            ($qrHeight - $logoSize) / 2,
-            0,
-            0,
-            $logoSize,
-            $logoSize,
-            $logoWidth,
-            $logoHeight
+        $logoObj = new Logo(
+            path: __DIR__ . '/logos/' . $logo . '.png',
+            resizeToWidth: 90,
+            punchoutBackground: true
         );
-
-        ob_start();
-        imagepng($qrImg);
-        $qrImage = 'data:image/png;base64,' . base64_encode(ob_get_clean());
     }
+
+    $result = $writer->write($qrCode, $logoObj);
+    $qrImage = $result->getDataUri();
 }
 ?>
 
-<h2>Generate Contact QR Code</h2>
+<h2>Contact to QR Code Generator</h2>
 
 <form method="POST">
 
@@ -159,9 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 </form>
 
-<?php if ($qrImage): ?>
+<?php if (!empty($qrImage)): ?>
     <h3>Your Contact QR Code:</h3>
-    <img src="<?php echo $qrImage; ?>" alt="QR Code">
+    <img src="<?= $qrImage ?>" alt="Contact QR Code">
 <?php endif; ?>
 
 </body>
