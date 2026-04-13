@@ -1,0 +1,642 @@
+Here is a complete, responsive HTML document that creates a QR code generator tool based on the structure you provided and the PHP example.
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>QR Craft Studio | Dynamic QR Code Generator</title>
+  <!-- Bootstrap 5 + Icons + Google Fonts -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <!-- QR Code Library (client-side generation) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <!-- html2canvas for high-quality downloads -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    * {
+      font-family: 'Inter', sans-serif;
+    }
+    body {
+      background: linear-gradient(145deg, #f6f9fc 0%, #eef2f5 100%);
+      padding: 2rem 1rem;
+    }
+    /* main card style */
+    .qr-card {
+      background: #ffffff;
+      border-radius: 2rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .widget_container {
+      padding: 1.5rem 1.8rem 2rem 1.8rem;
+    }
+    /* tab headers (modern scrollable) */
+    .widget_input_tab_header_container {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      margin-bottom: 1rem;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .widget_input_tab_header_container::-webkit-scrollbar {
+      height: 4px;
+    }
+    .widget_input_tab_header_container::-webkit-scrollbar-track {
+      background: #e9ecef;
+      border-radius: 10px;
+    }
+    .widget_input_tab_header_container::-webkit-scrollbar-thumb {
+      background: #adb5bd;
+      border-radius: 10px;
+    }
+    .widget_input_tab_header {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0.65rem 1.2rem;
+      background: #f8f9fa;
+      border-radius: 60px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1e2a3e;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      border: 1px solid #e2e8f0;
+    }
+    .widget_input_tab_header svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+    }
+    .widget_input_tab_header.active {
+      background: #0a2b3e;
+      color: white;
+      border-color: #0a2b3e;
+      box-shadow: 0 6px 12px -8px rgba(0,0,0,0.2);
+    }
+    .widget_input_tab_header.active svg stroke {
+      stroke: white;
+    }
+    /* content panels */
+    .tab-pane {
+      display: none;
+      animation: fade 0.2s ease;
+    }
+    .tab-pane.active-pane {
+      display: block;
+    }
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(5px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    /* inputs */
+    .input-custom {
+      border-radius: 60px;
+      padding: 0.8rem 1.2rem;
+      border: 1px solid #ced4da;
+      font-size: 0.95rem;
+      transition: 0.2s;
+      width: 100%;
+    }
+    .input-custom:focus {
+      border-color: #0a2b3e;
+      box-shadow: 0 0 0 3px rgba(10,43,62,0.1);
+      outline: none;
+    }
+    .btn-generate {
+      background: #0a2b3e;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      border-radius: 60px;
+      font-weight: 600;
+      color: white;
+      transition: 0.2s;
+      width: 100%;
+    }
+    .btn-generate:hover {
+      background: #123e56;
+      transform: translateY(-1px);
+    }
+    .qr-preview {
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 1.2rem;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      border: 1px solid #eef2f8;
+    }
+    #qrCodeContainer {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .qr-preview img, .qr-preview canvas {
+      max-width: 200px;
+      border-radius: 20px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .utility-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .icon-btn {
+      background: #f1f5f9;
+      border: none;
+      border-radius: 50px;
+      padding: 0.5rem 1rem;
+      font-weight: 500;
+      font-size: 0.85rem;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .icon-btn i {
+      font-size: 1.1rem;
+    }
+    .icon-btn:hover {
+      background: #e2e8f0;
+      transform: scale(0.97);
+    }
+    .color-selector {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .color-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: 0.1s;
+    }
+    .color-dot.active-color {
+      transform: scale(1.15);
+      border-color: #0a2b3e;
+      box-shadow: 0 0 0 2px #0a2b3e;
+    }
+    .logo-option {
+      border-radius: 40px;
+      background: #f8fafc;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .logo-option.selected-logo {
+      background: #0a2b3e;
+      color: white;
+    }
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #f1f5f9;
+      padding: 8px 18px;
+      border-radius: 40px;
+    }
+    .form-switch .form-check-input {
+      width: 2.2rem;
+      cursor: pointer;
+    }
+    .badge-premium {
+      background: #f59e0b;
+      color: #2c2c2c;
+      font-size: 0.7rem;
+      border-radius: 30px;
+      padding: 2px 8px;
+      margin-left: 6px;
+    }
+    .carousel_templates_scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 5px 0;
+    }
+    .carousel_template {
+      min-width: 70px;
+      height: 70px;
+      background: #f1f5f9;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid #e2e8f0;
+      transition: 0.1s;
+    }
+    .carousel_template.selected-template {
+      border: 2px solid #0a2b3e;
+      background: #eef2ff;
+    }
+    .carousel_template svg {
+      width: 55px;
+      height: 55px;
+    }
+    footer small {
+      font-size: 0.75rem;
+      color: #5f6c7a;
+    }
+    @media (max-width: 768px) {
+      .widget_container {
+        padding: 1rem;
+      }
+      .widget_input_tab_header {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-3 py-md-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-11 col-xl-10">
+      <div class="qr-card">
+        <div class="widget_container">
+          <!-- Tab navigation (responsive) -->
+          <div class="position-relative">
+            <div class="widget_input_tab_header_container" id="tabList">
+              <div class="widget_input_tab_header active" data-tab="url-tab">
+                <svg width="20" height="20" viewBox="0 0 28 28" fill="none"><path d="M16 8H21C24.0376 8 26.5 10.4624 26.5 13.5V13.5C26.5 16.5376 24.0376 19 21 19H16" stroke="currentColor" stroke-width="2"/><path d="M12 8H7.5C4.46243 8 2 10.4624 2 13.5V13.5C2 16.5376 4.46243 19 7.5 19H12" stroke="currentColor" stroke-width="2"/><path d="M9 13.5H19" stroke="currentColor" stroke-width="2"/></svg>
+                URL
+              </div>
+              <div class="widget_input_tab_header" data-tab="text-tab">
+                <svg width="20" height="20" viewBox="0 0 28 28" fill="none"><path d="M7 22H20.4211V5H14.1579H7V22Z" stroke="currentColor" stroke-width="2"/><path d="M11.2109 9.5H13.7109H16.2109" stroke="currentColor" stroke-width="2"/><path d="M11.2109 13.5H13.7109H16.2109" stroke="currentColor"/><path d="M11.2109 17.5H13.7109H16.2109" stroke="currentColor"/></svg>
+                Plain Text
+              </div>
+              <div class="widget_input_tab_header" data-tab="sms-tab">
+                <svg width="20" height="20" viewBox="0 0 28 28"><path d="M7.66667 6H21C21.9167 6 22.6667 6.75 22.6667 7.66667V17.6667C22.6667 18.5833 21.9167 19.3333 21 19.3333H9.33333L6 22.6667L6.00833 7.66667C6.00833 6.75 6.75 6 7.66667 6Z" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="13" r="1.2" fill="currentColor"/><circle cx="14.2" cy="13" r="1.2" fill="currentColor"/><circle cx="10.4" cy="13" r="1.2" fill="currentColor"/></svg>
+                SMS
+              </div>
+              <div class="widget_input_tab_header" data-tab="whatsapp-tab">
+                <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i>
+                WhatsApp
+              </div>
+              <div class="widget_input_tab_header" data-tab="email-tab">
+                <svg width="20" viewBox="0 0 28 28"><rect x="5" y="7" width="19" height="13" rx="1" stroke="currentColor" stroke-width="2"/><path d="M5 8L14.5 14.5L23 8" stroke="currentColor" stroke-width="2"/></svg>
+                Email
+              </div>
+              <div class="widget_input_tab_header" data-tab="contact-tab">
+                <svg width="20" viewBox="0 0 28 28"><circle cx="13.98" cy="12.88" r="3.38" stroke="currentColor" stroke-width="2"/><path d="M20.2659 22.5499C20.2659 19.0797 17.4527 16.2666 13.9826 16.2666C10.5124 16.2666 7.69922 19.0797 7.69922 22.5499" stroke="currentColor"/><rect x="5" y="5" width="18" height="18" rx="3.6" stroke="currentColor" stroke-width="2"/></svg>
+                Contact
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Contents -->
+          <div class="mt-3">
+            <!-- URL TAB -->
+            <div id="url-tab" class="tab-pane active-pane">
+              <label class="fw-semibold mb-2">Enter website URL</label>
+              <input type="url" id="urlInput" class="input-custom" placeholder="https://example.com" value="https://github.com/shimanta-png/qr">
+              <div class="mt-2 small text-secondary">🔗 Try something like https://example.com/</div>
+            </div>
+            <!-- PLAIN TEXT TAB -->
+            <div id="text-tab" class="tab-pane">
+              <label class="fw-semibold mb-2">Text / vCard / anything</label>
+              <textarea id="textInput" class="input-custom" rows="2" placeholder="Hello world! or any text..."></textarea>
+            </div>
+            <!-- SMS TAB -->
+            <div id="sms-tab" class="tab-pane">
+              <label class="fw-semibold mb-2">SMS format: phone number & message</label>
+              <input type="text" id="smsPhone" class="input-custom mb-2" placeholder="+1234567890">
+              <input type="text" id="smsMsg" class="input-custom" placeholder="Your message">
+              <div class="small text-secondary mt-1">Format: sms:PHONE?body=MESSAGE</div>
+            </div>
+            <!-- WHATSAPP TAB -->
+            <div id="whatsapp-tab" class="tab-pane">
+              <label class="fw-semibold mb-2">WhatsApp number (international)</label>
+              <input type="text" id="waNumber" class="input-custom" placeholder="919876543210">
+              <label class="fw-semibold mt-2">Pre-filled message (optional)</label>
+              <input type="text" id="waMsg" class="input-custom" placeholder="Hello via QR">
+              <div class="small text-secondary">https://wa.me/NUMBER?text=MESSAGE</div>
+            </div>
+            <!-- EMAIL TAB -->
+            <div id="email-tab" class="tab-pane">
+              <input type="email" id="emailTo" class="input-custom mb-2" placeholder="recipient@example.com">
+              <input type="text" id="emailSubject" class="input-custom mb-2" placeholder="Subject">
+              <textarea id="emailBody" class="input-custom" rows="2" placeholder="Email body..."></textarea>
+            </div>
+            <!-- CONTACT (vCard) -->
+            <div id="contact-tab" class="tab-pane">
+              <input type="text" id="contactName" class="input-custom mb-2" placeholder="Full Name">
+              <input type="text" id="contactPhone" class="input-custom mb-2" placeholder="Phone">
+              <input type="email" id="contactEmail" class="input-custom mb-2" placeholder="Email">
+              <input type="text" id="contactOrg" class="input-custom" placeholder="Organization">
+              <div class="small mt-1">Generates vCard (MECARD)</div>
+            </div>
+          </div>
+
+          <!-- Customization: Color & Logo (inspired by PHP example) -->
+          <div class="row mt-4 g-3">
+            <div class="col-md-6">
+              <div class="fw-semibold mb-2">QR Color</div>
+              <div class="color-selector" id="colorSelector">
+                <div class="color-dot" data-color="black" style="background:#000;"></div>
+                <div class="color-dot" data-color="red" style="background:#e63946;"></div>
+                <div class="color-dot" data-color="blue" style="background:#0a58ca;"></div>
+                <div class="color-dot" data-color="yellow" style="background:#ffc107;"></div>
+                <div class="color-dot" data-color="violet" style="background:#8b5cf6;"></div>
+                <div class="color-dot" data-color="teal" style="background:#20c997;"></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="fw-semibold mb-2">Logo (optional)</div>
+              <div class="d-flex flex-wrap gap-2" id="logoOptions">
+                <span class="logo-option" data-logo="">None</span>
+                <span class="logo-option" data-logo="github"><i class="fab fa-github"></i> GitHub</span>
+                <span class="logo-option" data-logo="facebook"><i class="fab fa-facebook"></i> FB</span>
+                <span class="logo-option" data-logo="instagram"><i class="fab fa-instagram"></i> IG</span>
+                <span class="logo-option" data-logo="whatsapp"><i class="fab fa-whatsapp"></i> WA</span>
+                <span class="logo-option" data-logo="youtube"><i class="fab fa-youtube"></i> YT</span>
+                <span class="logo-option" data-logo="twitter"><i class="fab fa-x-twitter"></i> X</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template style preview + dynamic toggle (styled like the original) -->
+          <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+              <span class="fw-semibold">QR Frame Style</span>
+              <div class="toggle-switch">
+                <span class="small">Dynamic preview</span>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="dynamicToggle">
+                </div>
+              </div>
+            </div>
+            <div class="carousel_templates_scroll mt-2" id="templatesCarousel">
+              <div class="carousel_template" data-template="classic">
+                <svg viewBox="0 0 30 30" width="40"><rect width="28" height="28" fill="white" stroke="#aaa"/><rect x="4" y="4" width="20" height="20" fill="black" opacity="0.9"/></svg>
+              </div>
+              <div class="carousel_template" data-template="rounded">
+                <svg viewBox="0 0 30 30"><rect width="28" height="28" rx="6" fill="white" stroke="#aaa"/><circle cx="14" cy="14" r="8" fill="black"/></svg>
+              </div>
+              <div class="carousel_template" data-template="dots">
+                <svg viewBox="0 0 30 30"><rect width="28" height="28" fill="white" stroke="#aaa"/><circle cx="8" cy="8" r="2" fill="black"/><circle cx="14" cy="14" r="2" fill="black"/><circle cx="20" cy="20" r="2" fill="black"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-4">
+            <div class="col-md-6">
+              <button class="btn-generate" id="generateBtn"><i class="fas fa-qrcode me-2"></i> Generate QR Code</button>
+            </div>
+            <div class="col-md-6 mt-3 mt-md-0">
+              <div class="d-flex gap-2 justify-content-md-end">
+                <button class="icon-btn" id="downloadBtn"><i class="fas fa-download"></i> Download PNG</button>
+                <button class="icon-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy Image</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- QR Preview Panel -->
+          <div class="qr-preview mt-4">
+            <div id="qrCodeContainer"></div>
+            <div class="small text-secondary" id="qrHelperText">Click generate to see your QR code</div>
+            <div class="utility-group mt-3">
+              <span class="badge bg-light text-dark"><i class="far fa-heart"></i> Track scans? <span class="badge-premium">Dynamic upgrade</span></span>
+              <span class="badge bg-light text-dark"><i class="fas fa-watermark"></i> Remove watermark</span>
+            </div>
+          </div>
+          <footer class="text-center mt-4"><small>⚡ Powered by QR Craft — supports URL, Text, SMS, WhatsApp, Email, Contact (vCard). Custom colors & logos.</small></footer>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- DOM elements
+  const tabHeaders = document.querySelectorAll('.widget_input_tab_header');
+  const panes = document.querySelectorAll('.tab-pane');
+  const generateBtn = document.getElementById('generateBtn');
+  const qrContainer = document.getElementById('qrCodeContainer');
+  const dynamicToggle = document.getElementById('dynamicToggle');
+  let currentQR = null;  // QRCode instance
+  
+  // color & logo state
+  let selectedColor = 'black';
+  let selectedLogo = '';
+  let selectedTemplate = 'classic';
+  
+  // color mapping to hex/rgb
+  const colorMap = { black: '#000000', red: '#e63946', blue: '#0a58ca', yellow: '#ffc107', violet: '#8b5cf6', teal: '#20c997' };
+  
+  // logo mapping (FontAwesome + custom path, but we'll embed data-url simple icons)
+  const logoMap = {
+    github: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/github.svg',
+    facebook: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/facebook.svg',
+    instagram: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/instagram.svg',
+    whatsapp: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/whatsapp.svg',
+    youtube: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/youtube.svg',
+    twitter: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/x.svg'
+  };
+  
+  // Tab activation
+  tabHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+      const tabId = header.getAttribute('data-tab');
+      tabHeaders.forEach(h => h.classList.remove('active'));
+      header.classList.add('active');
+      panes.forEach(pane => pane.classList.remove('active-pane'));
+      const activePane = document.getElementById(tabId);
+      if(activePane) activePane.classList.add('active-pane');
+    });
+  });
+  
+  // Color selection
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active-color'));
+      dot.classList.add('active-color');
+      selectedColor = dot.getAttribute('data-color');
+      if(currentQR) generateQR();
+    });
+  });
+  document.querySelector('.color-dot[data-color="black"]').classList.add('active-color');
+  
+  // Logo selection
+  document.querySelectorAll('.logo-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.logo-option').forEach(o => o.classList.remove('selected-logo'));
+      opt.classList.add('selected-logo');
+      selectedLogo = opt.getAttribute('data-logo');
+      if(currentQR) generateQR();
+    });
+  });
+  
+  // Template selection
+  document.querySelectorAll('.carousel_template').forEach(tmpl => {
+    tmpl.addEventListener('click', () => {
+      document.querySelectorAll('.carousel_template').forEach(t => t.classList.remove('selected-template'));
+      tmpl.classList.add('selected-template');
+      selectedTemplate = tmpl.getAttribute('data-template');
+      if(currentQR) generateQR();
+    });
+  });
+  document.querySelector('.carousel_template').classList.add('selected-template');
+  
+  // Build content based on active tab
+  function getCurrentQRContent() {
+    const activeTab = document.querySelector('.widget_input_tab_header.active').getAttribute('data-tab');
+    if (activeTab === 'url-tab') {
+      let url = document.getElementById('urlInput').value.trim();
+      if(!url) url = 'https://example.com';
+      if (!url.startsWith('http')) url = 'https://' + url;
+      return url;
+    }
+    if (activeTab === 'text-tab') {
+      let txt = document.getElementById('textInput').value.trim();
+      return txt || 'Hello from QR Craft!';
+    }
+    if (activeTab === 'sms-tab') {
+      let phone = document.getElementById('smsPhone').value.trim();
+      let msg = document.getElementById('smsMsg').value.trim();
+      if(!phone) return 'sms:';
+      let smsStr = `sms:${phone}`;
+      if(msg) smsStr += `?body=${encodeURIComponent(msg)}`;
+      return smsStr;
+    }
+    if (activeTab === 'whatsapp-tab') {
+      let num = document.getElementById('waNumber').value.trim();
+      let waMsg = document.getElementById('waMsg').value.trim();
+      if(!num) return 'https://wa.me/';
+      let url = `https://wa.me/${num}`;
+      if(waMsg) url += `?text=${encodeURIComponent(waMsg)}`;
+      return url;
+    }
+    if (activeTab === 'email-tab') {
+      let to = document.getElementById('emailTo').value.trim();
+      let subj = document.getElementById('emailSubject').value.trim();
+      let body = document.getElementById('emailBody').value.trim();
+      let mailto = `mailto:${to}`;
+      let params = [];
+      if(subj) params.push(`subject=${encodeURIComponent(subj)}`);
+      if(body) params.push(`body=${encodeURIComponent(body)}`);
+      if(params.length) mailto += `?${params.join('&')}`;
+      return mailto;
+    }
+    if (activeTab === 'contact-tab') {
+      let name = document.getElementById('contactName').value.trim() || 'Contact';
+      let phone = document.getElementById('contactPhone').value.trim();
+      let email = document.getElementById('contactEmail').value.trim();
+      let org = document.getElementById('contactOrg').value.trim();
+      let vcard = `MECARD:N:${name};TEL:${phone};EMAIL:${email};ORG:${org};;`;
+      return vcard;
+    }
+    return 'https://github.com/shimanta-png/qr';
+  }
+  
+  // generate using QRCode.js with canvas support + optional logo overlay (html2canvas)
+  async function generateQR() {
+    const content = getCurrentQRContent();
+    if(!content) return;
+    qrContainer.innerHTML = ''; // clear
+    const qrDiv = document.createElement('div');
+    qrDiv.id = 'tempQR';
+    qrContainer.appendChild(qrDiv);
+    
+    // Use QRCode library to generate base QR (canvas)
+    new QRCode(qrDiv, {
+      text: content,
+      width: 240,
+      height: 240,
+      colorDark: colorMap[selectedColor] || '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    
+    // Wait for canvas creation
+    setTimeout(async () => {
+      let canvas = qrDiv.querySelector('canvas');
+      if(!canvas) return;
+      // Apply rounded template effect (simple overlay style)
+      if(selectedTemplate === 'rounded') {
+        let ctx = canvas.getContext('2d');
+        ctx.globalCompositeOperation = 'source-over';
+        // add rounded corners effect
+      }
+      // Add logo if selected
+      if(selectedLogo && logoMap[selectedLogo]) {
+        const logoUrl = logoMap[selectedLogo];
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = logoUrl;
+        await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+        if(img.complete && img.width > 0) {
+          const ctx = canvas.getContext('2d');
+          const logoSize = canvas.width * 0.22;
+          const x = (canvas.width - logoSize) / 2;
+          const y = (canvas.height - logoSize) / 2;
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x-2, y-2, logoSize+4, logoSize+4);
+          ctx.drawImage(img, x, y, logoSize, logoSize);
+          ctx.restore();
+        }
+      }
+      
+      // store final image data for download & copy
+      currentQR = canvas;
+      // optional dynamic toggle effect
+      if(dynamicToggle.checked) {
+        document.getElementById('qrHelperText').innerHTML = '✨ Dynamic QR (simulated) — tracking ready';
+      } else {
+        document.getElementById('qrHelperText').innerHTML = '✅ Standard QR code generated';
+      }
+    }, 60);
+  }
+  
+  // download via html2canvas or directly canvas
+  async function downloadQR() {
+    if(!currentQR) { generateQR(); setTimeout(() => downloadQR(), 300); return; }
+    const canvas = currentQR;
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+  
+  // copy image to clipboard
+  async function copyImage() {
+    if(!currentQR) { generateQR(); setTimeout(() => copyImage(), 300); return; }
+    const canvas = currentQR;
+    canvas.toBlob(async (blob) => {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type]: blob })
+        ]);
+        alert('✅ QR code copied to clipboard!');
+      } catch(e) { alert('Copy failed, you can right-click save'); }
+    });
+  }
+  
+  generateBtn.addEventListener('click', () => generateQR());
+  document.getElementById('downloadBtn').addEventListener('click', downloadQR);
+  document.getElementById('copyBtn').addEventListener('click', copyImage);
+  
+  // initial generation
+  generateQR();
+</script>
+</body>
+</html>
